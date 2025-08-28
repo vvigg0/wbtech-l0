@@ -11,6 +11,7 @@ RUN go test -v ./...
 #Release build
 FROM alpine:3.19
 WORKDIR /
-COPY --from=build-stage /app/order-service /order-service
+COPY --from=build-stage /app/order-service /app/order-service
+COPY --from=build-stage /app/web /app/web
 EXPOSE 8080
-CMD ["/order-service"]
+CMD ["/app/order-service"]

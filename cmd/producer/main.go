@@ -9,7 +9,7 @@ import (
 )
 
 // ДЛЯ ИЗМЕНЕНИЯ КОЛИЧЕСТВА ЗАКАЗОВ ДЛЯ ГЕНЕРАЦИИ
-const startFrom = 5
+const startFrom = 7
 const orders = 2
 
 // Данные для создания рандомных заказов

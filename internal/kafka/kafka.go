@@ -2,6 +2,7 @@ package myKafka
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"l0/internal/cache"
 	"l0/internal/models"
@@ -22,7 +23,7 @@ var kafkaWriter = kafka.NewWriter(kafka.WriterConfig{
 	Topic:   "orders",
 })
 
-func GetOrder(cache *cache.TTLMap) {
+func GetOrder(db *sql.DB, cache *cache.TTLMap) {
 	var order models.Order
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -32,6 +33,7 @@ func GetOrder(cache *cache.TTLMap) {
 		message, err := reader.ReadMessage(ctx)
 		if err != nil {
 			log.Println("Ошибка при прочтении сообщения: ", err)
+
 		} else {
 			err := json.Unmarshal(message.Value, &order)
 			if err != nil {
@@ -39,8 +41,13 @@ func GetOrder(cache *cache.TTLMap) {
 				continue
 			}
 		}
+		err = service.InsertToDB(db, order)
+		if err != nil {
+			log.Printf("Ошибка вставки в БД: %v", err)
+			continue
+		}
 		cache.Set(order.OrderUID, order)
-		service.InsertToDB(order)
+		kafkaReader.CommitMessages(ctx, message)
 		log.Printf("Получен заказ: %v", order.OrderUID)
 	}
 }

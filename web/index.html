@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Заказ — Wildberries style</title>
+  <style>
+    :root{
+      --wb-bg:#100718;
+      --wb-card:#1a0f24;
+      --wb-ink:#ffffff;
+      --wb-ink-muted:#cfc3dc;
+      --wb-accent:#a000ff;     /* WB фиолетовый */
+      --wb-accent-2:#ff2d87;   /* WB розовый */
+      --wb-border:rgba(255,255,255,.08);
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; color:var(--wb-ink); background:
+        radial-gradient(1200px 600px at 10% -20%, rgba(160,0,255,.35), transparent 40%),
+        radial-gradient(900px 500px at 90% -10%, rgba(255,45,135,.25), transparent 45%),
+        linear-gradient(180deg,#0b0710,#13091a 60%, #0b0710);
+      font-family: Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    .wrap{max-width:1200px;margin:0 auto;padding:24px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}
+    .brand{display:flex;align-items:center;gap:12px}
+    .wb-badge{background:linear-gradient(135deg,var(--wb-accent),var(--wb-accent-2));padding:8px 12px;border-radius:10px;font-weight:800;letter-spacing:.3px}
+    .help{color:var(--wb-ink-muted);font-size:13px}
+
+    .panel{background:var(--wb-card);border:1px solid var(--wb-border);border-radius:16px;box-shadow:var(--shadow)}
+    .controls{padding:16px}
+    .controls .row{display:grid;grid-template-columns:1fr auto auto;gap:10px}
+    .input{width:100%;padding:12px 14px;border-radius:12px;background:#130d1a;border:1px solid var(--wb-border);color:var(--wb-ink)}
+    .btn{cursor:pointer;border:1px solid var(--wb-border);background:linear-gradient(135deg,#2a0b44,#21093a);color:var(--wb-ink);padding:12px 14px;border-radius:12px;font-weight:700}
+    .btn:hover{box-shadow:0 0 0 2px rgba(160,0,255,.4)}
+    .btn.acc{background:linear-gradient(135deg,var(--wb-accent),var(--wb-accent-2)); border-color:transparent}
+    .btn.ghost{background:transparent}
+
+    .grid{display:grid;gap:16px;margin-top:18px}
+    @media (min-width:1000px){.grid{grid-template-columns: 1.1fr 0.9fr}}
+
+    .card{padding:16px;border-radius:16px}
+    .title{font-weight:900;margin:0 0 12px}
+    .kv{display:grid;grid-template-columns:180px 1fr;gap:6px 16px}
+    .kv div{padding:6px 0;border-bottom:1px dashed var(--wb-border)}
+    .label{color:var(--wb-ink-muted)}
+
+    table{width:100%;border-collapse:separate;border-spacing:0 8px}
+    th,td{text-align:left;padding:10px 12px}
+    thead th{font-size:12px;color:var(--wb-ink-muted);font-weight:700}
+    tbody tr{background:#140c1e}
+    tbody tr td:first-child{border-top-left-radius:10px;border-bottom-left-radius:10px}
+    tbody tr td:last-child{border-top-right-radius:10px;border-bottom-right-radius:10px}
+
+    .status{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:#170f22;border:1px solid var(--wb-border);font-size:12px}
+    .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:#170f22;color:var(--wb-ink-muted);font-size:12px}
+
+    .json-box{margin-top:10px}
+    textarea{width:100%;min-height:140px;resize:vertical;border-radius:12px;background:#130d1a;border:1px solid var(--wb-border);color:var(--wb-ink);padding:12px 14px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+
+    .empty{padding:28px;text-align:center;color:var(--wb-ink-muted)}
+    .err{color:#ff94bb;font-weight:800}
+    .muted{color:var(--wb-ink-muted)}
+    .row-flex{display:flex;flex-wrap:wrap;gap:8px}
+    .mt8{margin-top:8px}
+    .mt12{margin-top:12px}
+    .mt16{margin-top:16px}
+    .srch-tip{font-size:12px;color:var(--wb-ink-muted);margin-top:6px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="wb-badge">WILDBERRIES</div>
+        <div class="pill" id="api-pill">API: <span style="margin-left:8px" id="api-base">/order/</span></div>
+      </div>
+      <div class="help">Введите ID заказа и нажмите «Показать»</div>
+    </header>
+
+    <section class="panel controls">
+      <div class="row">
+        <input id="orderId" class="input" type="text" placeholder="Например: b563feb7b2b84b6test" />
+        <button id="showBtn" class="btn acc">Показать</button>
+        <button id="pasteBtn" class="btn">Вставить JSON</button>
+      </div>
+      <div class="srch-tip">Страница доступна по адресу <code>/order</code>. После ввода ID страница откроется как <code>/order/&lt;id&gt;</code> и подтянет данные через API.</div>
+    </section>
+
+    <div id="content" class="grid" aria-live="polite"></div>
+
+    <section id="rawJsonBlock" class="panel card json-box" style="display:none">
+      <h3 class="title">Исходный JSON</h3>
+      <textarea id="rawJson" readonly></textarea>
+    </section>
+  </div>
+
+<script>
+(function(){
+  const $ = sel => document.querySelector(sel);
+  const routeBase = '/order'; // базовый путь страницы
+  const apiBase = '/api/order/';  // API endpoint (как у тебя в сервисе)
+  $('#api-base').textContent = apiBase;
+
+  // Навигация: /order -> ввод, /order/<id> -> загрузка
+  function currentIdFromPath(){
+    const path = window.location.pathname.replace(/\/+$/,'');
+    const parts = path.split('/').filter(Boolean); // ["order", "<id>"]
+    if(parts.length === 2 && parts[0] === 'order') return parts[1];
+    return null;
+  }
+
+  async function fetchOrder(id){
+    const res = await fetch(apiBase + encodeURIComponent(id), {headers:{'Accept':'application/json'}});
+    if(!res.ok){
+      const txt = await res.text().catch(()=>'');
+      throw new Error('HTTP '+res.status+' '+res.statusText+(txt?': '+txt:''));
+    }
+    return res.json();
+  }
+
+  function fmtMoney(val){
+    if(typeof val !== 'number') return String(val ?? '');
+    return new Intl.NumberFormat('ru-RU').format(val) + ' ₽';
+  }
+  function fmtDate(str){
+    const d = new Date(str);
+    if(Number.isNaN(+d)) return String(str ?? '');
+    return d.toLocaleString('ru-RU');
+  }
+
+  function field(label, value){
+    return `<div class="label">${label}</div><div>${value ?? ''}</div>`;
+  }
+
+  function renderOrder(o){
+    const content = $('#content');
+    if(!o || !o.order_uid){
+      content.innerHTML = `<section class="panel card empty">\
+        <div>Данные заказа не найдены. Проверьте ID и попробуйте снова.</div>\
+      </section>`;
+      $('#rawJsonBlock').style.display = 'none';
+      return;
+    }
+
+    content.innerHTML = `
+      <section class="panel card">
+        <h3 class="title">Заказ</h3>
+        <div class="kv">
+          ${field('UID заказа', o.order_uid)}
+          ${field('Трек-номер', o.track_number)}
+          ${field('Entry', o.entry)}
+          ${field('Локаль', o.locale)}
+          ${field('Внутр. подпись', o.internal_signature)}
+          ${field('Покупатель', o.customer_id)}
+          ${field('Служба доставки', o.delivery_service)}
+          ${field('Shard Key', o.shardkey)}
+          ${field('SM ID', o.sm_id)}
+          ${field('Создан', fmtDate(o.date_created))}
+          ${field('Oof Shard', o.oof_shard)}
+        </div>
+      </section>
+
+      <section class="panel card">
+        <h3 class="title">Доставка</h3>
+        <div class="kv">
+          ${field('Имя', o.delivery?.name)}
+          ${field('Телефон', o.delivery?.phone)}
+          ${field('Индекс', o.delivery?.zip)}
+          ${field('Город', o.delivery?.city)}
+          ${field('Адрес', o.delivery?.address)}
+          ${field('Регион', o.delivery?.region)}
+          ${field('Email', o.delivery?.email)}
+        </div>
+      </section>
+
+      <section class="panel card">
+        <h3 class="title">Оплата</h3>
+        <div class="kv">
+          ${field('Транзакция', o.payment?.transaction)}
+          ${field('Request ID', o.payment?.request_id)}
+          ${field('Валюта', o.payment?.currency)}
+          ${field('Провайдер', o.payment?.provider)}
+          ${field('Сумма', fmtMoney(o.payment?.amount))}
+          ${field('Дата оплаты (unix)', o.payment?.payment_dt)}
+          ${field('Банк', o.payment?.bank)}
+          ${field('Доставка', fmtMoney(o.payment?.delivery_cost))}
+          ${field('Товары всего', fmtMoney(o.payment?.goods_total))}
+          ${field('Custom fee', fmtMoney(o.payment?.custom_fee))}
+        </div>
+      </section>
+
+      <section class="panel card" style="grid-column:1/-1">
+        <h3 class="title">Товары</h3>
+        ${Array.isArray(o.items) && o.items.length ? `
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>chrt_id</th>
+                  <th>Название</th>
+                  <th>Бренд</th>
+                  <th>Размер</th>
+                  <th>Цена</th>
+                  <th>Скидка</th>
+                  <th>Итого</th>
+                  <th>rid</th>
+                  <th>nm_id</th>
+                  <th>Статус</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${o.items.map(it=>`
+                  <tr>
+                    <td>${it.chrt_id}</td>
+                    <td>${it.name ?? ''}</td>
+                    <td>${it.brand ?? ''}</td>
+                    <td>${it.size ?? ''}</td>
+                    <td>${fmtMoney(it.price)}</td>
+                    <td>${it.sale ?? 0}%</td>
+                    <td>${fmtMoney(it.total_price)}</td>
+                    <td>${it.rid ?? ''}</td>
+                    <td>${it.nm_id ?? ''}</td>
+                    <td>${it.status ?? ''}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        ` : `<div class="empty">Список товаров пуст</div>`}
+      </section>
+    `;
+
+    // Показать сырой JSON
+    $('#rawJson').value = JSON.stringify(o, null, 2);
+    $('#rawJsonBlock').style.display = '';
+  }
+
+  function renderLoading(){
+    $('#content').innerHTML = `<section class="panel card empty">Загружаем данные заказа…</section>`;
+    $('#rawJsonBlock').style.display = 'none';
+  }
+  function renderError(msg){
+    $('#content').innerHTML = `<section class="panel card empty"><span class="err">${msg}</span></section>`;
+    $('#rawJsonBlock').style.display = 'none';
+  }
+
+  // Кнопки
+  $('#showBtn').addEventListener('click', ()=>{
+    const id = ($('#orderId').value || '').trim();
+    if(!id){ $('#orderId').focus(); return; }
+    // Переходим на /order/<id>
+    const target = routeBase + '/' + encodeURIComponent(id);
+    if(location.pathname !== target){
+      location.assign(target);
+    }else{
+      // уже на этой странице – просто перезагрузить данные
+      boot();
+    }
+  });
+
+  // Паста JSON: позволяет вставить JSON вручную и посмотреть рендеринг
+  $('#pasteBtn').addEventListener('click', async ()=>{
+    try{
+      const txt = await navigator.clipboard.readText();
+      const obj = JSON.parse(txt);
+      renderOrder(obj);
+      $('#orderId').value = obj.order_uid || '';
+    }catch(e){
+      renderError('Буфер обмена не содержит валидный JSON');
+    }
+  });
+
+  async function boot(){
+    const id = currentIdFromPath();
+    if(id){
+      $('#orderId').value = id;
+      renderLoading();
+      try{
+        const data = await fetchOrder(id);
+        renderOrder(data);
+      }catch(e){
+        renderError(e.message || 'Не удалось загрузить заказ');
+      }
+    }else{
+      // если просто /order — очистим контент
+      $('#content').innerHTML = `<section class=\"panel card empty\">Введите ID заказа и нажмите «Показать»</section>`;
+      $('#rawJsonBlock').style.display = 'none';
+    }
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>
