@@ -56,7 +56,6 @@ func SendOrder(orders int, ch chan models.Order) {
 	defer cancel()
 	writer := kafkaWriter
 	defer writer.Close()
-	log.Println("Создание сообщений для кафки...")
 	for i := 0; i < orders; i++ {
 		order := <-ch
 		jsonOrder, err := json.Marshal(order)

@@ -3,6 +3,7 @@ package main
 import (
 	myKafka "l0/internal/kafka"
 	"l0/internal/models"
+	"log"
 	"math/rand"
 	"strconv"
 	"time"
@@ -128,5 +129,6 @@ func genRandomOrder(n int, ch chan models.Order) {
 func main() {
 	ch := make(chan models.Order)
 	go genRandomOrder(orders, ch)
+	log.Println("Создание сообщений для кафки...")
 	myKafka.SendOrder(orders, ch)
 }

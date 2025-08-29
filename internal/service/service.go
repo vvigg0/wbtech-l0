@@ -10,6 +10,7 @@ import (
 
 func GetFromDB(db *sql.DB, orderId string) ([]byte, error) {
 	var order models.Order
+	//выборка из orders
 	err := db.QueryRow("SELECT * FROM orders "+
 		"WHERE order_uid=$1", orderId).Scan(
 		&order.OrderUID, &order.TrackNumber,
@@ -20,6 +21,7 @@ func GetFromDB(db *sql.DB, orderId string) ([]byte, error) {
 	if err != nil {
 		return []byte{}, err
 	}
+	//выборка из deliveries
 	err = db.QueryRow("SELECT name,phone,"+
 		"zip,city,address,region,"+
 		"email FROM deliveries "+
@@ -31,6 +33,7 @@ func GetFromDB(db *sql.DB, orderId string) ([]byte, error) {
 	if err != nil {
 		return []byte{}, err
 	}
+	//выборка из payments
 	err = db.QueryRow("SELECT transaction,request_id,"+
 		"currency,provider,amount,payment_dt,"+
 		"bank,delivery_cost,goods_total,custom_fee "+
@@ -43,6 +46,7 @@ func GetFromDB(db *sql.DB, orderId string) ([]byte, error) {
 	if err != nil {
 		return []byte{}, err
 	}
+	//выборка из items(может быть несколько строк)
 	rows, err := db.Query("SELECT chrt_id,track_number,"+
 		"price,rid,name,sale,size,"+
 		"total_price,nm_id,brand,status "+
