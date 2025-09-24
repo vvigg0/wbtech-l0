@@ -4,126 +4,128 @@ import (
 	myKafka "l0/internal/kafka"
 	"l0/internal/models"
 	"log"
-	"math/rand"
-	"strconv"
+	"math"
 	"time"
+
+	"github.com/brianvoe/gofakeit/v7"
 )
 
 // ДЛЯ ИЗМЕНЕНИЯ КОЛИЧЕСТВА ЗАКАЗОВ ДЛЯ ГЕНЕРАЦИИ
-const startFrom = 7
-const orders = 2
+const orders = 10
 
 // Данные для создания рандомных заказов
-// Order
-var trackNumbers = []string{"TR123", "TR456", "TR789"}
-var entries = []string{"WBIL", "WEB", "MOB"}
-var locales = []string{"en", "ru", "de"}
-var internalSigns = []string{"", "sig1", "sig2"}
-var customerIDs = []string{"cust-1", "cust-2", "cust-3"}
-var deliveryServices = []string{"meest", "dhl", "ups"}
-var shardKeys = []string{"1", "2", "3"}
-var smIDs = []int{99, 100, 101}
-var oofShards = []string{"1", "2", "3"}
+var (
+	providers       = []string{"wbpay", "yookassa", "stripe", "paypal"}
+	currencies      = []string{"RUB", "USD", "EUR"}
+	entries         = []string{"WBIL", "WBME", "WBFW"}
+	locales         = []string{"ru", "en", "de"}
+	deliveryService = []string{"meest", "cdek", "boxberry", "dpd"}
+	shardKeys       = []string{"1", "3", "7", "9"}
+	oofShards       = []string{"0", "1", "2"}
+	sizes           = []string{"XS", "S", "M", "L", "XL"}
+	statuses        = []int{201, 202, 203, 301, 302}
+	brands          = []string{"Vivienne Sabo", "Maybelline", "L’Oreal", "Revlon", "Rimmel"}
+)
 
-// Delivery
-var deliveryNames = []string{"Ivan Petrov", "John Smith", "Anna Müller"}
-var deliveryPhones = []string{"+79001234567", "+18005551234", "+4915123456789"}
-var deliveryZips = []string{"123456", "90210", "10115"}
-var deliveryCities = []string{"Moscow", "Los Angeles", "Berlin"}
-var deliveryAddresses = []string{"Lenina 1", "Sunset Blvd 42", "Alexanderplatz 5"}
-var deliveryRegions = []string{"Moscow Region", "California", "Berlin"}
-var deliveryEmails = []string{"ivan@test.com", "john@test.com", "anna@test.com"}
+func round(v float64) int {
+	return int(math.Round(v))
+}
+func fakeItem(track string) models.Item {
+	price := gofakeit.Number(200, 5000) // цена от 200 до 5000
+	sale := gofakeit.Number(0, 60)      // скидка в процентах
+	total := round(float64(price) * float64(100-sale) / 100.0)
 
-// Payment
-var requestIDs = []string{"req-1", "req-2", "req-3"}
-var currencies = []string{"USD", "EUR", "RUB"}
-var providers = []string{"wbpay", "paypal", "stripe"}
-var amounts = []int{1000, 2000, 3000}
-var paymentDTs = []int64{1637907727, 1638000000, 1638100000}
-var banks = []string{"alpha", "sber", "tinkoff"}
-var deliveryCosts = []int{150, 250, 350}
-var goodsTotals = []int{500, 1000, 1500}
-var customFees = []int{0, 10, 20}
+	return models.Item{
+		ChrtID:      gofakeit.Number(1_000_000, 9_999_999),
+		TrackNumber: track,
+		Price:       price,
+		Rid:         gofakeit.HexUint(128), // псевдо rid
+		Name:        gofakeit.ProductName(),
+		Sale:        sale,
+		Size:        gofakeit.RandomString(sizes),
+		TotalPrice:  total,
+		NmId:        gofakeit.Number(1_000_000, 9_999_999),
+		Brand:       gofakeit.RandomString(brands),
+		Status:      gofakeit.RandomInt(statuses),
+	}
+}
 
-// Items
-var chrtIDs = []int{111, 222, 333}
-var itemTrackNumbers = []string{"TR123", "TR456", "TR789"}
-var prices = []int{100, 200, 300}
-var rids = []string{"rid-aaa", "rid-bbb", "rid-ccc"}
-var itemNames = []string{"T-shirt", "Shoes", "Hat"}
-var sales = []int{10, 20, 30}
-var sizes = []string{"S", "M", "L"}
-var totalPrices = []int{90, 160, 270}
-var nmIDs = []int{999, 888, 777}
-var brands = []string{"Nike", "Adidas", "Puma"}
-var statuses = []int{200, 201, 202}
+// доставка (получатель)
+func fakeDelivery() models.Delivery {
+	addr := gofakeit.Address()
+	return models.Delivery{
+		Name:    gofakeit.Name(),
+		Phone:   gofakeit.Phone(),
+		Zip:     addr.Zip,
+		City:    addr.City,
+		Address: addr.Address,
+		Region:  addr.State,
+		Email:   gofakeit.Email(),
+	}
+}
 
-var r *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
+func fakePayment(orderUID string, goodsTotal int, created time.Time) models.Payment {
+	deliveryCost := gofakeit.Number(0, 1500)
+	customFee := gofakeit.Number(0, 100)
+	amount := goodsTotal + deliveryCost + customFee
+	payTime := created.Add(time.Duration(gofakeit.Number(0, 3)) * time.Hour)
+	return models.Payment{
+		Transaction:  orderUID, // пусть будет тот же uid
+		RequestID:    gofakeit.UUID(),
+		Currency:     gofakeit.RandomString(currencies),
+		Provider:     gofakeit.RandomString(providers),
+		Amount:       amount,
+		PaymentDT:    payTime.Unix(),
+		Bank:         gofakeit.Company(),
+		DeliveryCost: deliveryCost,
+		GoodsTotal:   goodsTotal,
+		CustomFee:    customFee,
+	}
+}
+func fakeOrder() models.Order {
+	orderUID := gofakeit.UUID()
+	track := gofakeit.LetterN(12)
 
-func randomFrom[T any](list []T) T {
-	return list[r.Intn(len(list))]
+	// товары: 1–3 шт.
+	itemCount := gofakeit.Number(1, 3)
+	items := make([]models.Item, 0, itemCount)
+	sumGoods := 0
+	for i := 0; i < itemCount; i++ {
+		it := fakeItem(track)
+		items = append(items, it)
+		sumGoods += it.TotalPrice
+	}
+
+	//случайная дата создания
+	from := time.Now().AddDate(-1, 0, 0)
+	to := time.Now()
+	created := gofakeit.DateRange(from, to)
+
+	payment := fakePayment(orderUID, sumGoods, created)
+	delivery := fakeDelivery()
+
+	return models.Order{
+		OrderUID:        orderUID,
+		TrackNumber:     track,
+		Entry:           gofakeit.RandomString(entries),
+		Delivery:        delivery,
+		Payment:         payment,
+		Items:           items,
+		Locale:          gofakeit.RandomString(locales),
+		InternalSign:    gofakeit.HexUint(128),
+		CustomerId:      gofakeit.Username(),
+		DeliveryService: gofakeit.RandomString(deliveryService),
+		ShardKey:        gofakeit.RandomString(shardKeys),
+		SmID:            gofakeit.Number(1, 500),
+		DateCreated:     created.UTC(),
+		OofShard:        gofakeit.RandomString(oofShards),
+	}
 }
 func genRandomOrder(n int, ch chan models.Order) {
-	UID := startFrom
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	gofakeit.Seed(time.Now().UnixNano())
 	for i := 0; i < n; i++ {
-		items := []models.Item{}
-		for j := 0; j < 1+r.Intn(3); j++ {
-			item := models.Item{
-				ChrtID:      randomFrom(chrtIDs),
-				TrackNumber: randomFrom(itemTrackNumbers),
-				Price:       randomFrom(prices),
-				Rid:         randomFrom(rids),
-				Name:        randomFrom(itemNames),
-				Sale:        randomFrom(sales),
-				Size:        randomFrom(sizes),
-				TotalPrice:  randomFrom(totalPrices),
-				NmId:        randomFrom(nmIDs),
-				Brand:       randomFrom(brands),
-				Status:      randomFrom(statuses),
-			}
-			items = append(items, item)
-		}
-		payment := models.Payment{
-			Transaction:  strconv.Itoa(UID) + "test",
-			RequestID:    randomFrom(requestIDs),
-			Currency:     randomFrom(currencies),
-			Provider:     randomFrom(providers),
-			Amount:       randomFrom(amounts),
-			PaymentDT:    randomFrom(paymentDTs),
-			Bank:         randomFrom(banks),
-			DeliveryCost: randomFrom(deliveryCosts),
-			GoodsTotal:   randomFrom(goodsTotals),
-			CustomFee:    randomFrom(customFees),
-		}
-		delivery := models.Delivery{
-			Name:    randomFrom(deliveryNames),
-			Phone:   randomFrom(deliveryPhones),
-			Zip:     randomFrom(deliveryZips),
-			City:    randomFrom(deliveryCities),
-			Address: randomFrom(deliveryAddresses),
-			Region:  randomFrom(deliveryRegions),
-			Email:   randomFrom(deliveryEmails),
-		}
-		order := models.Order{
-			OrderUID:        strconv.Itoa(UID),
-			TrackNumber:     randomFrom(trackNumbers),
-			Entry:           randomFrom(entries),
-			Delivery:        delivery,
-			Payment:         payment,
-			Items:           items,
-			Locale:          randomFrom(locales),
-			InternalSign:    randomFrom(internalSigns),
-			CustomerId:      randomFrom(customerIDs),
-			DeliveryService: randomFrom(deliveryServices),
-			ShardKey:        randomFrom(shardKeys),
-			SmID:            randomFrom(smIDs),
-			DateCreated:     time.Now(),
-			OofShard:        randomFrom(oofShards),
-		}
-		ch <- order
-		UID++
-		time.Sleep(time.Duration(rand.Intn(10)) * time.Second)
+		ch <- fakeOrder()
+		time.Sleep(time.Duration(2 * time.Second))
 	}
 }
 func main() {
