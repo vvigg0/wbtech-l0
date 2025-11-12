@@ -20,8 +20,6 @@ l0/
 │   ├── docker-compose.yml    # оркестрация сервисов
 │   ├── Dockerfile.prdc       # сборка продюсера
 │   └── Dockerfile.srvc       # сборка сервиса заказов
-├── initdb/
-│   └── init.sql              # инициализация базы
 ├── internal/
 │   ├── cache/                # in-memory cache
 │   │   └── cache.go
