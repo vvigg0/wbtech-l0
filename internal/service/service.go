@@ -66,6 +66,9 @@ func GetFromDB(db *sql.DB, orderId string) ([]byte, error) {
 		}
 		items = append(items, item)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	order.Items = items
 	jsonOrder, err := json.MarshalIndent(order, "", " ")
 	if err != nil {
@@ -102,5 +105,6 @@ func InsertToDB(db *sql.DB, order models.Order) error {
 	if err != nil {
 		return fmt.Errorf("ошибка вставки в deliveries: %v", err)
 	}
+	log.Println("Успешно занесли в БД")
 	return tx.Commit()
 }
